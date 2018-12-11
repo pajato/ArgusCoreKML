@@ -1,55 +1,30 @@
-buildscript {
-    ext.kotlinVersion = '1.3.0-rc-190'
-    ext.junitPlatformVersion = "1.0.0"
-    ext.assertjVersion = "3.8.0"
-}
-
 plugins {
-    id 'kotlin-multiplatform' version '1.3.0-rc-190'
+    id 'kotlin-multiplatform' version '1.3.11'
 }
 
 repositories {
-    maven { url 'http://dl.bintray.com/kotlin/kotlin-eap' }
     mavenCentral()
 }
 
-group 'com.pajato.argus'
-version '0.0.1'
-
-apply plugin: 'jacoco'
-apply plugin: 'maven-publish'
-
-jacoco {
-    toolVersion = "0.8.2"
-}
-
-task jacocoJVMTestReport(type: JacocoReport) {
-    //dependsOn = test
-    group = "Reporting"
-    description = "Generate Jacoco coverage report."
-    classDirectories = fileTree(dir: "$buildDir/classes/kotlin/jvm/main")
-    def coverageSourceDirs = ["src/commonMain/kotlin", "src/jvmMain/kotlin"]
-    additionalSourceDirs = files(coverageSourceDirs)
-    sourceDirectories = files(coverageSourceDirs)
-    executionData = files("$buildDir/jacoco/jvmTest.exec")
-    reports {
-        html.enabled = true
-        xml.enabled = true
-        csv.enabled = false
-    }
-}
+final def os = org.gradle.internal.os.OperatingSystem.current()
 
 kotlin {
+    final def nativePreset = os.isWindows() ? presets.mingwX64
+            : os.isLinux()   ? presets.linuxX64
+            : os.isMacOsX()  ? presets.macosX64
+            : /*unknown host*/ null
+
     targets {
         fromPreset(presets.jvm, 'jvm')
-        fromPreset(presets.js, 'js')
+        fromPreset(nativePreset, 'native')
+        //fromPreset(presets.js, 'js')
         // For ARM, preset should be changed to presets.iosArm32 or presets.iosArm64
         // For Linux, preset should be changed to e.g. presets.linuxX64
         // For MacOS, preset should be changed to e.g. presets.macosX64
-        fromPreset(presets.macosX64, 'macos')
     }
+
     sourceSets {
-    commonMain {
+        commonMain {
             dependencies {
                 implementation 'org.jetbrains.kotlin:kotlin-stdlib-common'
             }
@@ -81,9 +56,36 @@ kotlin {
                 implementation 'org.jetbrains.kotlin:kotlin-test-js'
             }
         }
-        macosMain {
+        nativeMain {
         }
-        macosTest {
+        nativeTest {
         }
     }
 }
+
+apply plugin: 'jacoco'
+
+jacoco {
+    toolVersion = "0.8.2"
+}
+
+task coverageReportJVM(type: JacocoReport) {
+    //dependsOn = test
+    group = "Reporting"
+    description = "Generate Jacoco coverage report."
+    classDirectories = fileTree(dir: "$buildDir/classes/kotlin/jvm/main")
+    def coverageSourceDirs = ["src/commonMain/kotlin", "src/jvmMain/kotlin"]
+    additionalSourceDirs = files(coverageSourceDirs)
+    sourceDirectories = files(coverageSourceDirs)
+    executionData = files("$buildDir/jacoco/jvmTest.exec")
+    reports {
+        html.enabled = true
+        xml.enabled = true
+        csv.enabled = false
+    }
+}
+
+group = GROUP
+version = VERSION_NAME
+
+apply from: 'publish.gradle'
